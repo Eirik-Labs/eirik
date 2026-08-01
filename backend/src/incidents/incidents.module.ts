@@ -9,5 +9,6 @@ import { Incident } from './entities/incidents.entity';
   imports: [
     TypeOrmModule.forFeature([Incident]),
   ],
+  exports:[IncidentsService]
 })
 export class IncidentsModule {}

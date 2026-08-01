@@ -5,6 +5,8 @@ import { WebhookModule } from './webhook/webhook.module';
 import { IncidentsModule } from './incidents/incidents.module';
 import {ConfigModule, ConfigService} from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -30,7 +32,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     logging: true, // logs the running queries
   }),
 }),
-    WebhookModule, IncidentsModule],
+    WebhookModule, IncidentsModule, AuthModule, UsersModule],
 
   controllers: [AppController],
   providers: [AppService],
