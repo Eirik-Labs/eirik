@@ -18,20 +18,21 @@ export class UsersService {
             private readonly usersRepository: Repository<User>
         ){}
 
-    async findByEmail(email:string){
+    async findByEmail(email:string, organizationId:string){
       const user = await this.usersRepository.findOne({
         where:{
             email,
+            organizationId
         }
       })
       
-      if(!user)throw new NotFoundException(`User with email ${email} not found`);
+      // if(!user)throw new NotFoundException(`User with email ${email} not found`);
 
       return user;
     }
 
-    async create(createUserDto: CreateUserDto) {
-         const existingUser = await this.usersRepository.findOne({ where: { email: createUserDto.email } });
+    async create(createUserDto: CreateUserDto, organizationId:string) {
+         const existingUser = await this.usersRepository.findOne({ where: { email: createUserDto.email, organizationId } });
          
          if(existingUser) {
             throw new ConflictException(`User with email ${createUserDto.email} already exists`);
@@ -41,15 +42,16 @@ export class UsersService {
 
          const user = this.usersRepository.create({
           ...createUserDto,
-          password: hashedPassword
+          password: hashedPassword,
+          organizationId: organizationId
          })
 
          return this.usersRepository.save(user)
     }
 
-    async findById(id:string){
+    async findById(id:string, organizationId:string){
       const user = await this.usersRepository.findOne({
-        where :{id}
+        where :{id, organizationId}
       })
       if(!user)throw new NotFoundException(`User not found`);
       return user;
@@ -67,16 +69,16 @@ export class UsersService {
       })
     }
 
-    async update(id: string, updateUserDto: UpdateUserDto) {
-      const user = await this.findById(id);
+    async update(id: string, updateUserDto: UpdateUserDto, organizationId:string) {
+      const user = await this.findById(id, organizationId);
       Object.assign(user, updateUserDto)
 
       return this.usersRepository.save(user)
 
     }
 
-    async deactivate(id: string){
-       const user = await this.findById(id);
+    async deactivate(id: string,organizationId:string){
+       const user = await this.findById(id, organizationId);
        user.isActive=false;
        await this.usersRepository.save(user)
        return {
@@ -84,8 +86,8 @@ export class UsersService {
        }
     }
      
-    async activate(id: string){
-       const user = await this.findById(id);
+    async activate(id: string, organizationId:string){
+       const user = await this.findById(id, organizationId);
        user.isActive=true;
         await this.usersRepository.save(user)
        return {
@@ -93,16 +95,17 @@ export class UsersService {
        }
     }    
     
-    async softDelete(id: string){
-      const user = await this.findById(id)
+    async softDelete(id: string, organizationId:string){
+      const user = await this.findById(id,organizationId)
       await this.usersRepository.softDelete(user.id)
       return {
         message: `User has been deleted`,
       }
     }
     
-    async restore(id: string) {
-     const result = await this.usersRepository.restore(id);
+    async restore(id: string, organizationId:string) {
+      const user = await this.findById(id, organizationId)
+     const result = await this.usersRepository.restore(user.id);
      if (result.affected === 0) {
        throw new NotFoundException('User not found');
      }
