@@ -1,4 +1,4 @@
-import { Controller, Post,Body } from '@nestjs/common';
+import { Controller, Post,Body,Headers } from '@nestjs/common';
 import { WebhookService } from './webhook.service';
 import { AlertmanagerWebhookDto } from './dto/alertmanager-webhook.dto';
 
@@ -7,8 +7,8 @@ export class WebhookController {
   constructor(private readonly webhookService: WebhookService) {}
 
   @Post('alert')
-  receiveAlert(@Body() payload: AlertmanagerWebhookDto){
-    return this.webhookService.receiveAlert(payload)
+  receiveAlert(@Body() payload: AlertmanagerWebhookDto, @Headers('x-webhook-secret') webhookSecret:string ){
+    return this.webhookService.receiveAlert(payload, webhookSecret)
   }
 
 

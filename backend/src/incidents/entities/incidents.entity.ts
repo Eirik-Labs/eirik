@@ -9,7 +9,7 @@ import {
 
 import { IncidentSource } from '../enums/incident-source.enum';
 import { IncidentStatus } from '../enums/incident-status.enum';
-import { IncidentSeverity } from '../enums/incident-severity.enum';
+import { Severity } from '../../common/enums/severity.enum';
 @Entity('incidents')
 export class Incident {
     @PrimaryGeneratedColumn('uuid')
@@ -38,16 +38,18 @@ export class Incident {
 
     @Column({
     type: 'enum',
-    enum: IncidentSeverity,
+    enum: Severity,
     })
-    severity!: IncidentSeverity;
+    severity!: Severity;
     
 
     @Column({
     default: 1,
     })
     alertCount!: number;
-
+    
+    @Column()
+    organizationId!: string;
 
     @Column({
       type:'timestamptz'
@@ -77,4 +79,19 @@ export class Incident {
     })
     updatedAt!:Date
     // TypeORM updates this timestamp automatically.
+
+    @Column({nullable:true})
+    assignee?:string
+
+    @Column({
+      type:'timestamptz',
+      nullable:true
+    })
+    acknowledgedAt?: Date
+
+    @Column({
+      type:'timestamptz',
+      nullable:true
+    })
+    resolvedAt?:Date
   }
