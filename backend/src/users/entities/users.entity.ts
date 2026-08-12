@@ -48,5 +48,6 @@ export class User {
   isActive?: boolean;
 
   @DeleteDateColumn()
+  @Exclude()
   deletedAt?: Date;
 }

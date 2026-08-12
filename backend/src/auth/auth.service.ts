@@ -31,7 +31,7 @@ export class AuthService {
             organizationId: user.organizationId
         }
 
-        const accessToken = this.jwtService.signAsync(payload)
+        const accessToken = await this.jwtService.signAsync(payload)
 
         return {
             accessToken,

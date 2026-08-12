@@ -47,7 +47,9 @@ export class Incident {
     default: 1,
     })
     alertCount!: number;
-
+    
+    @Column()
+    organizationId!: string;
 
     @Column({
       type:'timestamptz'

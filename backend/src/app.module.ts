@@ -7,6 +7,7 @@ import {ConfigModule, ConfigService} from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { OrganizationsModule } from './organizations/organizations.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -32,7 +33,7 @@ import { UsersModule } from './users/users.module';
     logging: true, // logs the running queries
   }),
 }),
-    WebhookModule, IncidentsModule, AuthModule, UsersModule],
+    WebhookModule, IncidentsModule, AuthModule, UsersModule, OrganizationsModule],
 
   controllers: [AppController],
   providers: [AppService],

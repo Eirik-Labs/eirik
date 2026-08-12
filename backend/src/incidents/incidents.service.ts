@@ -9,6 +9,8 @@ import { AlertStatus } from 'src/common/enums/alert-status.enum';
 import { GetIncidentsQueryDto } from './dto/get-incident-query.dto';
 import { Severity } from 'src/common/enums/severity.enum';
 import { Brackets } from 'typeorm';
+import { JwtPayload } from 'src/auth/interfaces/jwt-payload.interface';
+import { TenantUtils } from 'src/common/utils/tenants.utils';
 @Injectable()
 export class IncidentsService {
     
@@ -24,31 +26,34 @@ export class IncidentsService {
 
     createOrUpdateIncident(){}
 
-    async findByFingerprint(fingerprint: string){
+    async findByFingerprint(fingerprint: string, organizationId:string){
         return this.incidentRepository.findOne({
             where:{
                 fingerprint,
+                organizationId
             }
         })
     }
 
-    async getIncidentById(id:any) {
-        const incident= await this.incidentRepository.findOne({
-            where:{
-                id:id
-            }
-        })
-
-        if(incident){
-            return incident
-        }
-        else throw new NotFoundException("No incident with this id exists")
+    async getIncidentById(id: string, user: JwtPayload) {
+       const incident = await this.incidentRepository.findOne({
+         where: {
+           id,
+           ...TenantUtils.where(user),
+         },
+       });
+     
+       if (!incident) {
+         throw new NotFoundException('No incident with this id exists');
+       }
+     
+       return incident;
     }
 
-    async processIncomingAlert(alert: AlertDto){
+    async processIncomingAlert(alert: AlertDto, organizationId:string){
         // const fingerprint = alert.fingerprint
 
-        const existingIncident = await this.findByFingerprint(alert.fingerprint)
+        const existingIncident = await this.findByFingerprint(alert.fingerprint,organizationId)
          
         const incidentStatus= alert.status== AlertStatus.FIRING ?
          IncidentStatus.OPEN : IncidentStatus.CLOSED
@@ -57,6 +62,7 @@ export class IncidentsService {
             // console.log("insert incident")
             const newIncident=  this.incidentRepository.create({
                 fingerprint: alert.fingerprint,
+                organizationId,
                 title:alert.labels.alertname,
                 severity: alert.labels.severity,
                 source: IncidentSource.ALERTMANAGER,
@@ -84,99 +90,129 @@ export class IncidentsService {
 
 
     // async getAllIncidents(query: GetIncidentsQueryDto){
-    //    const where: FindOptionsWhere<Incident>={}
-    //    const limit=query.limit ?? 10
-    //    const page= query.page ?? 1
-    //    const skip = (page-1)*limit
+    //     const limit=query.limit ?? 10
+    //     const page= query.page ?? 1
+    //     const skip = (page-1)*limit
+    //     const qb= this.incidentRepository.createQueryBuilder('incidents')
 
-    //    if(query.status){
-    //     where.status=query.status
-    //    }
-
-    //    if(query.severity){
-    //     where.severity=query.severity
-    //    }
-       
-    //    if(query.source){
-    //     where.source= query.source
-    //    }
-
-    //     const [incidents,total]= await this.incidentRepository.findAndCount({
-    //         where,
-    //         take:limit,
-    //         skip,
-    //         order:{
-    //         lastSeenAt:'desc'
-    //        }
-    //     })
+    //     if(query.status){
+    //         qb.andWhere('incidents.status = :status',{
+    //             status: query.status,
+    //         })
+    //     }
         
-    //     const totalPages= Math.ceil(total/limit)
+    //     if(query.severity){
+    //         qb.andWhere('incidents.severity = :severity',{
+    //             severity: query.severity
+    //         })
+    //     }
+
+    //     if(query.source){
+    //         qb.andWhere('incidents.source = :source',{
+    //             source: query.source
+    //         })
+    //     }
+
+    //     if(query.search){
+    //         qb.andWhere(
+    //             new Brackets((qb)=>{
+    //                 qb.where('incidents.title ILIKE :search')
+    //                 .orWhere('incidents.fingerprint ILIKE :search')
+    //                 .orWhere('incidents.assignee ILIKE :search')
+    //             }),
+    //             {
+    //                 search:`%${query.search}%`,
+    //             },
+    //         )
+    //     }
+
+    //     const [incidents, total] = await qb
+    //     .orderBy('incidents.lastSeenAt', 'DESC')
+    //     .skip(skip)
+    //     .take(limit)
+    //     .getManyAndCount();
+
+    //     const totalPages = Math.ceil(total / limit);
 
     //     return {
     //         data: incidents,
     //         page,
     //         limit,
     //         total,
-    //         totalPages   
-    //     }
+    //         totalPages,
+    //     };
     // }
 
-    async getAllIncidents(query: GetIncidentsQueryDto){
-        const limit=query.limit ?? 10
-        const page= query.page ?? 1
-        const skip = (page-1)*limit
-        const qb= this.incidentRepository.createQueryBuilder('incidents')
-
-        if(query.status){
-            qb.andWhere('incidents.status = :status',{
-                status: query.status,
-            })
-        }
-        
-        if(query.severity){
-            qb.andWhere('incidents.severity = :severity',{
-                severity: query.severity
-            })
-        }
-
-        if(query.source){
-            qb.andWhere('incidents.source = :source',{
-                source: query.source
-            })
-        }
-
-        if(query.search){
-            qb.andWhere(
-                new Brackets((qb)=>{
-                    qb.where('incidents.title ILIKE :search')
-                    .orWhere('incidents.fingerprint ILIKE :search')
-                    .orWhere('incidents.assignee ILIKE :search')
-                }),
-                {
-                    search:`%${query.search}%`,
-                },
-            )
-        }
-
-        const [incidents, total] = await qb
-        .orderBy('incidents.lastSeenAt', 'DESC')
-        .skip(skip)
-        .take(limit)
-        .getManyAndCount();
-
-        const totalPages = Math.ceil(total / limit);
-
-        return {
-            data: incidents,
-            page,
-            limit,
-            total,
-            totalPages,
-        };
+    async getAllIncidents(
+       query: GetIncidentsQueryDto,
+       user: JwtPayload,
+     ) {
+       const limit = query.limit ?? 10;
+       const page = query.page ?? 1;
+       const skip = (page - 1) * limit;
+     
+       const qb = this.incidentRepository
+         .createQueryBuilder('incidents')
+         .where('1=1');                   //dummy condition 
+     
+       const tenantFilter = TenantUtils.where(user);
+     
+       if (tenantFilter.organizationId) {            //for superadmin tenantFilter is {} and this filter does not work
+         qb.andWhere('incidents.organizationId = :organizationId', {
+           organizationId: tenantFilter.organizationId,
+         });
+       }
+     
+       if (query.status) {
+         qb.andWhere('incidents.status = :status', {
+           status: query.status,
+         });
+       }
+     
+       if (query.severity) {
+         qb.andWhere('incidents.severity = :severity', {
+           severity: query.severity,
+         });
+       }
+     
+       if (query.source) {
+         qb.andWhere('incidents.source = :source', {
+           source: query.source,
+         });
+       }
+     
+       if (query.search) {
+         qb.andWhere(
+           new Brackets((qb) => {
+             qb.where('incidents.title ILIKE :search')
+               .orWhere('incidents.fingerprint ILIKE :search')
+               .orWhere('incidents.assignee ILIKE :search');
+           }),
+           {
+             search: `%${query.search}%`,
+           },
+         );
+       }
+     
+       const [incidents, total] = await qb
+         .orderBy('incidents.lastSeenAt', 'DESC')
+         .skip(skip)
+         .take(limit)
+         .getManyAndCount();
+     
+       const totalPages = Math.ceil(total / limit);
+     
+       return {
+         data: incidents,
+         page,
+         limit,
+         total,
+         totalPages,
+       };
     }
 
-    async assignIncident(id:string, assignee:string){
-        const incident=  await this.getIncidentById(id)
+    async assignIncident(id:string, assignee:string, user:JwtPayload){
+        const incident=  await this.getIncidentById(id,user)
 
         // if(!incident)throw new Error("no incident exists with this id") not required as getIncidentsById will already throw an error
         
@@ -189,8 +225,8 @@ export class IncidentsService {
 
     }
 
-    async updateIncidentStatus(id:string, status:IncidentStatus){
-        const incident= await this.getIncidentById(id)
+    async updateIncidentStatus(id:string, status:IncidentStatus, user:JwtPayload){
+        const incident= await this.getIncidentById(id,user)
 
         incident.status=status
 
@@ -199,7 +235,9 @@ export class IncidentsService {
 
 
     // get all the incident stats , for devs to have a bird eye view of the issues
-    async getIncidentStats(){
+    async getIncidentStats(user:JwtPayload){
+        const tenantFilter= TenantUtils.where(user)
+        const where= tenantFilter.organizationId ? {organizationId:tenantFilter.organizationId} : {}
         const [
             total,
             open,
@@ -212,13 +250,13 @@ export class IncidentsService {
             //node js doesnt execute SQL itself, it sends multiple req to postgres,
             //postgres processes them and node simply waits for the response
 
-            this.incidentRepository.count(),
-            this.incidentRepository.count({where:{status:IncidentStatus.OPEN}}),
-            this.incidentRepository.count({where:{status:IncidentStatus.ACKNOWLEDGED}}),
-            this.incidentRepository.count({where:{status:IncidentStatus.CLOSED}}),
-            this.incidentRepository.count({where:{severity:Severity.CRITICAL}}),
-            this.incidentRepository.count({where:{severity:Severity.INFO}}),
-            this.incidentRepository.count({where:{severity:Severity.WARNING}}), 
+            this.incidentRepository.count({where}),
+            this.incidentRepository.count({where:{...where, status:IncidentStatus.OPEN}}),
+            this.incidentRepository.count({where:{...where, status:IncidentStatus.ACKNOWLEDGED}}),
+            this.incidentRepository.count({where:{...where, status:IncidentStatus.CLOSED}}),
+            this.incidentRepository.count({where:{...where, severity:Severity.CRITICAL}}),
+            this.incidentRepository.count({where:{...where, severity:Severity.INFO}}),
+            this.incidentRepository.count({where:{...where, severity:Severity.WARNING}}), 
         ])
 
         return {

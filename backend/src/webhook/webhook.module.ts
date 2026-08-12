@@ -3,10 +3,11 @@ import { WebhookService } from './webhook.service';
 import { WebhookController } from './webhook.controller';
 import { IncidentsService } from 'src/incidents/incidents.service';
 import { IncidentsModule } from 'src/incidents/incidents.module';
+import { OrganizationsModule } from 'src/organizations/organizations.module';
 
 @Module({
   controllers: [WebhookController],
   providers: [WebhookService],
-  imports: [IncidentsModule]
+  imports: [IncidentsModule,OrganizationsModule]
 })
 export class WebhookModule {}
