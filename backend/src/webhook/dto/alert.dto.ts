@@ -5,8 +5,11 @@ import { AlertAnnotationsDto } from './alert-annotations.dto';
 import { AlertStatus } from '../../common/enums/alert-status.enum';
 
 export class AlertDto{
-      @IsEnum(AlertStatus)
+  @IsEnum(AlertStatus)
   status!: AlertStatus;
+  
+  @IsString()
+  fingerprint!:string
 
   @ValidateNested()
   @Type(() => AlertLabelsDto)

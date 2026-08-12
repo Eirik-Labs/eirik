@@ -1,11 +1,31 @@
 import { Type } from "class-transformer";   
-import {IsArray, IsEnum, IsString, ValidateNested} from 'class-validator'
+import {IsArray, IsEnum, IsString, ValidateNested, IsOptional, IsObject} from 'class-validator'
 import {AlertDto} from './alert.dto'
 import { AlertStatus } from "src/common/enums/alert-status.enum";
 
 export class AlertmanagerWebhookDto{
+   
+   @IsString()
+   version!: string;
+
    @IsString()
    receiver!:string;
+
+   @IsOptional()
+   @IsString()
+   groupKey?: string;
+
+   @IsObject()
+   groupLabels!: Record<string, string>;
+ 
+   @IsObject()
+   commonLabels!: Record<string, string>;
+ 
+   @IsObject()
+   commonAnnotations!: Record<string, string>;
+ 
+   @IsString()
+   externalURL!: string;
 
    @IsEnum(AlertStatus)
    status!:AlertStatus;
@@ -13,7 +33,7 @@ export class AlertmanagerWebhookDto{
    @IsArray()
    @ValidateNested({each:true})
    @Type(()=>AlertDto)
-   alerts!:AlertDto
+   alerts!:AlertDto[]
 
 }
 
