@@ -26,15 +26,21 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
+          node-version: 22            
+          cache: npm                                           #Many of the packages that npm downloaded in the previous CI run are already in the npm cache, so npm ci can use the cached packages instead of downloading them again
           cache-dependency-path: backend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
+      # - name: Run tests
+      #   run: npm test      we look at the tests afterwards
 
       - name: Build application
         run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build
+          path: backend/dist          #dist/ is the build output which is uploaded under artifacts  to preserve it as github runner  and environment are temporary

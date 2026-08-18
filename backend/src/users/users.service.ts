@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Logger
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -16,6 +17,9 @@ import { UserRole } from 'src/common/enums/user-role.enum';
 
 @Injectable()
 export class UsersService {
+
+    private readonly logger= new Logger(UsersService.name)
+
     constructor(
             @InjectRepository(User)
             private readonly usersRepository: Repository<User>
@@ -34,15 +38,17 @@ export class UsersService {
     }
 
     async create(createUserDto: CreateUserDto, currentUser: JwtPayload) {
-      console.log(currentUser)
+     
          const existingUser = await this.usersRepository.findOne({ where: { email: createUserDto.email, organizationId: currentUser.organizationId } });
          
          if(existingUser) {
+            this.logger.warn(`User creation rejected: email already exists`);
             throw new ConflictException(`User with email ${createUserDto.email} already exists`);
          }
          
          const role= createUserDto.role ?? UserRole.ENGINEER
          if(role==UserRole.SUPERADMIN){
+            this.logger.warn(`User creation rejected: invalid role`);
             throw new ForbiddenException('Invalid role')
          }
          const hashedPassword = await bcrypt.hash(createUserDto.password, 10)
@@ -53,7 +59,17 @@ export class UsersService {
           organizationId: currentUser.organizationId
          })
 
-         return this.usersRepository.save(user)
+         try {
+          const savedUser = await this.usersRepository.save(user);
+        
+          this.logger.log(`User created: ${savedUser.id}`);
+        
+          return savedUser;
+        } catch (error) {
+          this.logger.error(`Failed to create user`, error);
+        
+          throw error;
+        }
     }
 
     async findById(id:string, currentUser: JwtPayload){
@@ -80,7 +96,11 @@ export class UsersService {
       const user = await this.findById(id, currentUser);
       Object.assign(user, updateUserDto)
 
-      return this.usersRepository.save(user)
+      const updatedUser= this.usersRepository.save(user)
+
+      this.logger.log(`User updated: ${id}`)
+
+      return updatedUser
 
     }
 
@@ -88,6 +108,7 @@ export class UsersService {
        const user = await this.findById(id, currentUser);
        user.isActive=false;
        await this.usersRepository.save(user)
+       this.logger.log(`User deactivated: ${id}`);
        return {
         message: `User has been deactivated`,
        }
@@ -96,7 +117,8 @@ export class UsersService {
     async activate(id: string, currentUser: JwtPayload){
        const user = await this.findById(id, currentUser);
        user.isActive=true;
-        await this.usersRepository.save(user)
+       await this.usersRepository.save(user)
+       this.logger.log(`User activated: ${id}`);
        return {
         message: `User has been activated`,
        }
@@ -105,6 +127,7 @@ export class UsersService {
     async softDelete(id: string, currentUser: JwtPayload){
       const user = await this.findById(id, currentUser)
       await this.usersRepository.softDelete(user.id)
+      this.logger.log(`User soft-deleted: ${id}`);
       return {
         message: `User has been deleted`,
       }
@@ -117,6 +140,7 @@ export class UsersService {
       })
       if(!user) throw new NotFoundException('User not found');
      const result = await this.usersRepository.restore(user.id);
+     this.logger.log(`User restored: ${id}`);
     //  if (result.affected === 0) {
     //    throw new NotFoundException('User not found');
     //  }

@@ -4,9 +4,13 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ClassSerializerInterceptor } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { logger } from './common/logger/logger.config'
+import { MetricsInterceptor } from './metrics/metrics.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule,{
+    logger
+  });
   
   app.setGlobalPrefix('api/v1');
 
@@ -19,6 +23,7 @@ async function bootstrap() {
 
   app.useGlobalInterceptors(
   new ClassSerializerInterceptor(app.get(Reflector)),
+  app.get(MetricsInterceptor),
   );
   
   const config = new DocumentBuilder()

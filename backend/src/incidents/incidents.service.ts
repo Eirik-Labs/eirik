@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AlertDto } from 'src/webhook/dto/alert.dto';
 import { Incident } from './entities/incidents.entity';
@@ -13,7 +13,7 @@ import { JwtPayload } from 'src/auth/interfaces/jwt-payload.interface';
 import { TenantUtils } from 'src/common/utils/tenants.utils';
 @Injectable()
 export class IncidentsService {
-    
+    private readonly logger = new Logger(IncidentsService.name)
     constructor(
         @InjectRepository(Incident)
         private readonly incidentRepository: Repository<Incident>
@@ -44,6 +44,9 @@ export class IncidentsService {
        });
      
        if (!incident) {
+          this.logger.warn(
+            `Incident not found: incidentId=${id}, userId=${user.sub}`,
+          );
          throw new NotFoundException('No incident with this id exists');
        }
      
@@ -52,6 +55,10 @@ export class IncidentsService {
 
     async processIncomingAlert(alert: AlertDto, organizationId:string){
         // const fingerprint = alert.fingerprint
+        this.logger.log(
+    `Processing incoming alert: organizationId=${organizationId}, fingerprint=${alert.fingerprint}, status=${alert.status}`,
+  );
+
 
         const existingIncident = await this.findByFingerprint(alert.fingerprint,organizationId)
          
@@ -59,7 +66,10 @@ export class IncidentsService {
          IncidentStatus.OPEN : IncidentStatus.CLOSED
 
         if(!existingIncident){
-            // console.log("insert incident")
+             this.logger.log(
+      `Creating new incident: fingerprint=${alert.fingerprint}, organizationId=${organizationId}`,
+    );  
+
             const newIncident=  this.incidentRepository.create({
                 fingerprint: alert.fingerprint,
                 organizationId,
@@ -74,7 +84,10 @@ export class IncidentsService {
             })
 
            await this.incidentRepository.save(newIncident)  // create simply creates an incident obj, we use save to persist it, since no id is there, a new insertion is made
-        }
+            this.logger.log(
+               `Incident created successfully: incidentId=${newIncident.id}, fingerprint=${alert.fingerprint}`,
+             );
+          }
         else {
             // console.log('update incident')
             
@@ -84,6 +97,9 @@ export class IncidentsService {
             existingIncident.rawPayload= JSON.parse(JSON.stringify(alert))
             
             await this.incidentRepository.save(existingIncident) // if entry already exists, it updates the fields
+              this.logger.log(
+                `Incident updated successfully: incidentId=${existingIncident.id}, fingerprint=${alert.fingerprint}, alertCount=${existingIncident.alertCount}, status=${incidentStatus}`,
+              );
         }
 
     }
@@ -221,16 +237,25 @@ export class IncidentsService {
         incident.acknowledgedAt= new Date()  
         incident.status= IncidentStatus.ACKNOWLEDGED
     
-        return await this.incidentRepository.save(incident)
-
+        const result= await this.incidentRepository.save(incident)
+        this.logger.log(
+          `Incident assigned: incidentId=${id}, assignee=${assignee}, userId=${user.sub}`,
+        );
+        return result
     }
 
     async updateIncidentStatus(id:string, status:IncidentStatus, user:JwtPayload){
         const incident= await this.getIncidentById(id,user)
-
+        const previousStatus=incident.status
         incident.status=status
 
-        return await this.incidentRepository.save(incident)
+          const result = await this.incidentRepository.save(incident);
+
+        this.logger.log(
+        `Incident status updated: incidentId=${id}, previousStatus=${previousStatus}, newStatus=${status}, userId=${user.sub}`,
+        );
+
+     return result;
     }
 
 
