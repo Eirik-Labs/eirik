@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { AiModule } from './ai/ai.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -34,7 +35,7 @@ import { MetricsModule } from './metrics/metrics.module';
     logging: true, // logs the running queries
   }),
 }),
-    WebhookModule, IncidentsModule, AuthModule, UsersModule, OrganizationsModule, MetricsModule],
+    WebhookModule, IncidentsModule, AuthModule, UsersModule, OrganizationsModule, MetricsModule, AiModule],
 
   controllers: [AppController],
   providers: [AppService],

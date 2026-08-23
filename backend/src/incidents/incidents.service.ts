@@ -11,12 +11,14 @@ import { Severity } from 'src/common/enums/severity.enum';
 import { Brackets } from 'typeorm';
 import { JwtPayload } from 'src/auth/interfaces/jwt-payload.interface';
 import { TenantUtils } from 'src/common/utils/tenants.utils';
+import { AiService } from 'src/ai/ai.service';
 @Injectable()
 export class IncidentsService {
     private readonly logger = new Logger(IncidentsService.name)
     constructor(
         @InjectRepository(Incident)
-        private readonly incidentRepository: Repository<Incident>
+        private readonly incidentRepository: Repository<Incident>,
+        private readonly aiService: AiService,
     ){}
 
 // this refers to the current IncidentsService object, 
@@ -58,22 +60,25 @@ export class IncidentsService {
         this.logger.log(
     `Processing incoming alert: organizationId=${organizationId}, fingerprint=${alert.fingerprint}, status=${alert.status}`,
   );
-
+        // console.dir(alert, { depth: null });
 
         const existingIncident = await this.findByFingerprint(alert.fingerprint,organizationId)
          
         const incidentStatus= alert.status== AlertStatus.FIRING ?
          IncidentStatus.OPEN : IncidentStatus.CLOSED
+        
+        let incident:Incident
 
         if(!existingIncident){
              this.logger.log(
-      `Creating new incident: fingerprint=${alert.fingerprint}, organizationId=${organizationId}`,
-    );  
+               `Creating new incident: fingerprint=${alert.fingerprint}, organizationId=${organizationId}`,
+             );  
 
             const newIncident=  this.incidentRepository.create({
                 fingerprint: alert.fingerprint,
                 organizationId,
                 title:alert.labels.alertname,
+                service:alert.labels.service,
                 severity: alert.labels.severity,
                 source: IncidentSource.ALERTMANAGER,
                 status: incidentStatus,
@@ -83,7 +88,7 @@ export class IncidentsService {
                 rawPayload: JSON.parse(JSON.stringify(alert))
             })
 
-           await this.incidentRepository.save(newIncident)  // create simply creates an incident obj, we use save to persist it, since no id is there, a new insertion is made
+            incident= await this.incidentRepository.save(newIncident)  // create simply creates an incident obj, we use save to persist it, since no id is there, a new insertion is made
             this.logger.log(
                `Incident created successfully: incidentId=${newIncident.id}, fingerprint=${alert.fingerprint}`,
              );
@@ -96,12 +101,32 @@ export class IncidentsService {
             existingIncident.status= incidentStatus
             existingIncident.rawPayload= JSON.parse(JSON.stringify(alert))
             
-            await this.incidentRepository.save(existingIncident) // if entry already exists, it updates the fields
-              this.logger.log(
-                `Incident updated successfully: incidentId=${existingIncident.id}, fingerprint=${alert.fingerprint}, alertCount=${existingIncident.alertCount}, status=${incidentStatus}`,
-              );
+            incident= await this.incidentRepository.save(existingIncident) // if entry already exists, it updates the fields
+            this.logger.log(
+              `Incident updated successfully: incidentId=${existingIncident.id}, fingerprint=${alert.fingerprint}, alertCount=${existingIncident.alertCount}, status=${incidentStatus}`,
+            );
         }
 
+       try {
+      const res=   await this.aiService.analyzeIncident({
+           incidentId: incident.id,
+           service: incident.service,
+           alert: incident.title,
+           severity: incident.severity,
+           source: incident.source,
+           firstSeenAt: incident.firstSeenAt,
+           lastSeenAt: incident.lastSeenAt,
+           rawPayload: incident.rawPayload,
+         });
+        //  console.log("result is")
+        //  console.dir(res, { depth: null });
+       } catch (error) {
+        console.log("error is",error)
+         this.logger.error(
+           `AI analysis failed: incidentId=${incident.id}`,
+           error,
+         );
+       }
     }
 
 

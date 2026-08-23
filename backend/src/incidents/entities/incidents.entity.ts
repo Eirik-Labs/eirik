@@ -21,6 +21,9 @@ export class Incident {
 
     @Column()
     title!: string;
+    
+    @Column()
+    service!: string;
 
     @Column({
       type:'enum',

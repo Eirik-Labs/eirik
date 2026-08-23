@@ -15,7 +15,7 @@ export const logger = WinstonModule.createLogger({
     }),
 
     new LokiTransport({
-      host: 'http://localhost:3100',   //when using locally , use http://localhost:3100
+      host: 'http://127.0.0.1:3100',   //when using locally , use http://localhost:3100
       labels: {
         app: 'eirik-api',
         environment: 'development',

@@ -14,6 +14,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import {trace} from '@opentelemetry/api'
 
 @ApiTags('Users')
 @ApiBearerAuth('access-token')
@@ -21,7 +22,26 @@ import {
 @Controller('users')
 export class UsersController {
     constructor(private readonly usersService: UsersService) {}
+    private readonly tracer = trace.getTracer('eirik-api');
 
+     @Get('test-trace')
+  testTrace() {
+    const span = this.tracer.startSpan('manual-test-span');
+
+    span.setAttribute('test', true);
+    span.setAttribute('service', 'eirik-api');
+
+    console.log('TRACE ID:', span.spanContext().traceId);
+    console.log('SPAN ID:', span.spanContext().spanId);
+
+
+    span.end();
+
+    return {
+      message: 'span created',
+      traceId: span.spanContext().traceId,
+    };
+  }
     @Post()
     @Roles(UserRole.ADMIN,UserRole.SUPERADMIN)
     @ApiOperation({ summary: 'Create a user' })
