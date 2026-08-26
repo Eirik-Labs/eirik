@@ -45,7 +45,7 @@ async def analyze(incident: Incident):
      )
 
      return {
-         "incident": incident,
-         "observability": observability,
+        #  "incident": incident,
+        #  "observability": observability,
          "root cause analysis":rca
      }

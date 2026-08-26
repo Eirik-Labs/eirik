@@ -92,6 +92,35 @@ export class IncidentsService {
             this.logger.log(
                `Incident created successfully: incidentId=${newIncident.id}, fingerprint=${alert.fingerprint}`,
              );
+
+            try {
+            const res=   await this.aiService.analyzeIncident({
+                 incidentId: incident.id,
+                 service: incident.service,
+                 alert: incident.title,
+                 severity: incident.severity,
+                 source: incident.source,
+                 firstSeenAt: incident.firstSeenAt,
+                 lastSeenAt: incident.lastSeenAt,
+                 rawPayload: incident.rawPayload,
+               });
+               console.log("result is")
+               console.dir(res, { depth: null });
+               
+               incident.rca = res['root cause analysis'];
+               await this.incidentRepository.save(incident)
+      
+               this.logger.log(
+                 `RCA stored successfully: incidentId=${incident.id}`,
+               );
+      
+             } catch (error) {
+              console.log("error is",error)
+               this.logger.error(
+                 `AI analysis failed: incidentId=${incident.id}`,
+                 error,
+               );
+             }
           }
         else {
             // console.log('update incident')
@@ -106,27 +135,6 @@ export class IncidentsService {
               `Incident updated successfully: incidentId=${existingIncident.id}, fingerprint=${alert.fingerprint}, alertCount=${existingIncident.alertCount}, status=${incidentStatus}`,
             );
         }
-
-       try {
-      const res=   await this.aiService.analyzeIncident({
-           incidentId: incident.id,
-           service: incident.service,
-           alert: incident.title,
-           severity: incident.severity,
-           source: incident.source,
-           firstSeenAt: incident.firstSeenAt,
-           lastSeenAt: incident.lastSeenAt,
-           rawPayload: incident.rawPayload,
-         });
-         console.log("result is")
-         console.dir(res, { depth: null });
-       } catch (error) {
-        console.log("error is",error)
-         this.logger.error(
-           `AI analysis failed: incidentId=${incident.id}`,
-           error,
-         );
-       }
     }
 
 

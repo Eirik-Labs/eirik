@@ -97,4 +97,15 @@ export class Incident {
       nullable:true
     })
     resolvedAt?:Date
+
+    @Column({ type: 'jsonb', nullable: true })
+    rca?: {
+      summary: string;
+      root_cause: string;
+      evidence: string[];
+      missing_evidence: string[];
+      recommended_actions: string[];
+      confidence: number;
+    } | null;
+
   }
