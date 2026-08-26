@@ -1,5 +1,6 @@
 import os
 import json
+
 from groq import AsyncGroq
 from dotenv import load_dotenv
 
@@ -9,6 +10,7 @@ load_dotenv()
 class LLMService:
 
     def __init__(self):
+
         self.client = AsyncGroq(
             api_key=os.getenv("GROQ_API_KEY")
         )
@@ -18,7 +20,24 @@ class LLMService:
             "openai/gpt-oss-120b"
         )
 
-    async def analyze_incident(self, incident, observability):
+    async def analyze_incident(self, incident, context):
+
+        incident_data = {
+            "service": incident.service,
+            "alert": incident.alert,
+            "severity": incident.severity,
+            "source": incident.source,
+            "first_seen": str(incident.firstSeenAt),
+            "last_seen": str(incident.lastSeenAt),
+        }
+
+        context_json = json.dumps(
+            context,
+            separators=(",", ":"),
+            default=str
+        )
+
+        print("LLM CONTEXT SIZE:", len(context_json))
 
         prompt = f"""
 You are an experienced Site Reliability Engineer investigating a production incident.
@@ -26,10 +45,10 @@ You are an experienced Site Reliability Engineer investigating a production inci
 Analyze the incident using ONLY the supplied evidence.
 
 INCIDENT:
-{json.dumps(incident, indent=2, default=str)}
+{json.dumps(incident_data, separators=(",", ":"))}
 
-OBSERVABILITY DATA:
-{json.dumps(observability, indent=2, default=str)}
+OBSERVABILITY EVIDENCE:
+{context_json}
 
 Return ONLY valid JSON in exactly this structure:
 
@@ -50,11 +69,13 @@ Return ONLY valid JSON in exactly this structure:
 
 Rules:
 
-- Do not invent evidence.
-- Distinguish facts from hypotheses.
-- If evidence is insufficient, explicitly say so.
-- confidence must be a number between 0 and 1.
+- Use ONLY the supplied evidence.
+- Never invent metrics, logs, traces, or events.
+- Clearly distinguish facts from hypotheses.
+- If evidence is insufficient, say so.
+- confidence must be between 0 and 1.
 - Keep the response concise.
+- Return valid JSON only.
 """
 
         response = await self.client.chat.completions.create(
@@ -62,7 +83,10 @@ Rules:
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a production incident investigation assistant."
+                    "content": (
+                        "You are a production incident investigation "
+                        "assistant. Return only valid JSON."
+                    )
                 },
                 {
                     "role": "user",
@@ -70,6 +94,7 @@ Rules:
                 }
             ],
             temperature=0.1,
+            max_tokens=1000,
         )
 
         content = response.choices[0].message.content

@@ -7,11 +7,15 @@ from app.services.prometheus import PrometheusService
 from app.services.loki import LokiService 
 from app.models.incident import Incident
 from app.services.investigator import Investigator
+from app.services.tempo import TempoService
+from app.services.context_builder import ContextBuilder
 app = FastAPI()
 
 prometheus_service = PrometheusService()
 loki_service = LokiService()
-investigator = Investigator(prometheus_service, loki_service)
+tempo_service = TempoService()
+context_builder = ContextBuilder()
+investigator = Investigator(prometheus_service, loki_service, tempo_service)
 llm_service = LLMService()
 
 
@@ -29,10 +33,15 @@ async def analyze(incident: Incident):
      # 1. Collect relevant observability evidence
      observability = await investigator.investigate(incident)
 
+     context = context_builder.build(
+     incident,
+     observability
+)
+     
       # 2. Give incident + evidence to the LLM
      rca = await llm_service.analyze_incident(
          incident=incident,
-         observability=observability
+         context=context
      )
 
      return {

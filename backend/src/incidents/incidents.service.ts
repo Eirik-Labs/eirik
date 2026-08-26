@@ -118,8 +118,8 @@ export class IncidentsService {
            lastSeenAt: incident.lastSeenAt,
            rawPayload: incident.rawPayload,
          });
-        //  console.log("result is")
-        //  console.dir(res, { depth: null });
+         console.log("result is")
+         console.dir(res, { depth: null });
        } catch (error) {
         console.log("error is",error)
          this.logger.error(
